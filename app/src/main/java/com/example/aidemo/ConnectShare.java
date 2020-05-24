@@ -35,6 +35,8 @@ public class ConnectShare extends AppCompatActivity {
     private BluetoothDevice mDevice;
     private boolean mIsBluetoothConnected = false;
     private OutputStream mOutputStream;
+    ProgressDialog pd;
+    boolean flag = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +44,10 @@ public class ConnectShare extends AppCompatActivity {
         setContentView(R.layout.activity_connect_share);
         captureBtn = findViewById(R.id.connect_btn);
         inflateBtn = findViewById(R.id.inflate);
+
+        pd = new ProgressDialog(ConnectShare.this);
+        pd.setTitle("Waiting for response...");
+        pd.setCancelable(false);
 
         Intent intent = getIntent();
         Bundle b = intent.getExtras();
@@ -60,25 +66,50 @@ public class ConnectShare extends AppCompatActivity {
 
     public void Capture(View view) {
         String cmd = "capture";
-        InputStream inputStream;
+        final InputStream inputStream;
         try {
             inputStream = mBTSocket.getInputStream();
             mBTSocket.getOutputStream().write(cmd.getBytes());
-            Toast.makeText(this, "Result Captured", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Capture: " + mBTSocket.getInputStream());
 
-            Log.d(TAG, "Capture: " + inputStream.available());
+            Toast.makeText(ConnectShare.this, "Result Captured", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Capture1: " + mBTSocket.getInputStream());
 
-            BufferedInputStream bis = new BufferedInputStream(inputStream);
-            ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            int result = bis.read();
+            Log.d(TAG, "Capture2: " + inputStream.available());
 
-            while (result != -1) {
-                buf.write((byte) result);
-                result = bis.read();
-            }
+            pd.show();
 
-            Log.d(TAG, "Capture: " + buf);
+            final Thread thread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        while(flag) {
+
+                            if (inputStream.available()!=0) {
+
+                                BufferedInputStream bis = new BufferedInputStream(inputStream);
+                                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                                int result = bis.read();
+
+                                while (result != -1) {
+                                    buf.write((byte) result);
+                                    result = bis.read();
+                                }
+
+                                Log.d(TAG, "Capture3: " + buf);
+
+                                flag = false;
+                                pd.dismiss();
+                            }
+
+                            sleep(500);
+                        }
+                    } catch (InterruptedException | IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+            thread.start();
+
 
         } catch (IOException e) {
             e.printStackTrace();
